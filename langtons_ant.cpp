@@ -1,6 +1,12 @@
 #include <iostream>
 #include <utility>
+#include <cmath>
+#include <algorithm>
+#include <functional>
+#include <time.h>
+#include <string>
 #include "lodepng.h"
+#include "unistd.h"
 
 using namespace std;
 
@@ -10,50 +16,128 @@ struct Ant {
 	int y = 0;
 };
 
-void HSVtoRGB(int, int, int);
+struct RGB {
+	unsigned char r;
+	unsigned char g;
+	unsigned char b;
+};
+
+struct HSV {
+	unsigned char h;
+	unsigned char s;
+	unsigned char v;
+};
+
+void printColor(HSV &c);
+void printColor(RGB &c);
+
+void convertColor(const HSV&, RGB&);
+void convertColor(const RGB&, HSV&);
 
 void decodeOneStep(const char*, vector<unsigned char>&, unsigned int&, unsigned int&);
 void encodeOneStep(const char*, vector<unsigned char>&, int, int);
 
-int generateColor();
+HSV generateColor(HSV&);
 
-int workAnt(vector<unsigned char>&, int, int, Ant&);
+void workAnt(vector<unsigned char>&, const vector<int>&, const unsigned char&, const int&, const int&, Ant&);
 int moveAnt(Ant&);
 int trapAnt(Ant&, int, int);
 
 int createBox(int, int, int, int, int, int, vector<unsigned char>&);
 
-int main() {
-	// create an ant!! play god, you are the master of l'univers
-	Ant ant;
+int main(int argc, char * argv[]) {
+	unsigned char colorLength; // number of colors ie., length of LR sequence
+	long long steps; // number of iterations
 	
-	// create image
-	vector<unsigned char> image;
-	unsigned int height = 0; unsigned int width = 0; // image properties
+	if (argc > 1) {
+		colorLength = strlen(argv[1]);
+		steps = stoll(argv[2]);
+	}else return 0;
 	
-	decodeOneStep("test1.png", image, width, height);
-	cout << "Decoded!" << endl; // success loading image
-	cout << "Width: " << width << endl;
-	cout << "Height: " << height << endl;
+	cout << colorLength << endl;
+	cout << steps << endl;
 	
-	image.resize(height * width * 4);
+	vector<int> dirs; // translate LR into angle deltas ie., L -> +90, R -> -90
+	
+	for (int i = 0; i < colorLength; i++) {
+		if (argv[1][i] == 'R') {
+			dirs.emplace_back(-90);
+		} else if (argv[1][i] == 'L') {
+			dirs.emplace_back(90);
+		}
+	}
+	
+	for (auto &d : dirs) {
+		cout << d << " ";
+	}
+	
+	cout << endl;
+	
+	Ant ant; // create an ant!
+	vector<unsigned char> image; // make the image
+	
+	unsigned int height = 2000; unsigned int width = 2000; // image properties
+	
+	image.resize(height * width);
 	
 	ant.x = width / 2 - 1;
 	ant.y = height / 2 - 1;
 	cout << ant.x << " " << ant.y << endl;
 	
-	//createBox(0, width, 0, height, 1920, 1200, image);
+	vector<HSV> colors_h;
+	vector<RGB> colors_r;
 	
-	vector<int> colors = {};
+	srand(time(NULL));
 	
-	colors.append(rand());
+	HSV c1;
+	c1.h = rand() % 255;
+	c1.s = rand() % 255;
+	c1.v = rand() % 255;
 	
-	for (long long i = 0; i < 100000000; i++) {
-		workAnt(image, width, height, ant);
+	colors_h.push_back(c1);
+	
+	for (int i = 1; i < colorLength; i++) {
+		colors_h.push_back(generateColor(colors_h.at(i - 1)));
+	}
+	
+	for (HSV c : colors_h) {
+		printColor(c);
+	}
+	
+	RGB c2;
+	for (HSV c : colors_h) {
+		convertColor(c, c2);
+		colors_r.push_back(c2);
+		printColor(c2);
+	}
+	
+	/*sleep(2);
+	srand(time(NULL));
+	int shuf = 0;
+	for (int i = colorLength; i > 0; i--) {
+		shuf = rand() % i;
+		iter_swap(colors_r.begin() + i, colors_r.begin() + shuf);
+	}*/
+	
+	for (long long i = 0; i < steps; i++) {
+		workAnt(image, dirs, colorLength, width, height, ant);
 		moveAnt(ant);
 		trapAnt(ant, width, height);
-		colors.append() = generateColor(colors.end());
 	}
+	
+	cout << "Poor ant is tired!" << endl;
+	
+	vector<unsigned char> imageFinal; // make the image
+	imageFinal.resize(4 * width * height);
+	unsigned char c = 0;
+	for (int x = 0; x < width; x++)
+		for (int y = 0; y < height; y++) {
+			c = image[width * y + x];
+			imageFinal[4 * width * y + x * 4 + 0] = colors_r[c].r;
+    		imageFinal[4 * width * y + x * 4 + 1] = colors_r[c].g;
+    		imageFinal[4 * width * y + x * 4 + 2] = colors_r[c].b;
+    		imageFinal[4 * width * y + x * 4 + 3] = 255;
+		}
 	
 	//createBox(0, width/2-1, 0, height/2-1, 1920, 1080, image);
 	//createBox(width/2-1, width, height/2-1, height, 1920, 1080, image);
@@ -66,28 +150,12 @@ int main() {
     	image[4 * width * y + x * 4 + 3] = 255;
 	}*/
 	
-	encodeOneStep("test.png", image, width, height);
+	cout << "Encoding now..." << endl;
 	
-	//Ant ant;
-	// long long iteration = 0;
+	string outputString = argv[1] + argv[2];
 	
-	/*// write header info
-	outfile << "P3" << endl; // magic number
-	outfile << 1920 << " " << 1200 << endl; // dimensions : width : height
-	outfile << 255 << endl;
+	encodeOneStep(outputString, imageFinal, width, height);
 	
-	while (iteration < (1920 * 1200)) {
-		if (ant.pos % 2 == 0) {
-			ant.vector += 90;
-		}
-		outfile << 
-	};
-	
-
-	outfile << "255   0   0     0 255   0     0   0 255" << endl;
-	outfile << "255 255   0   255 255 255     0   0   0" << endl;
-	outfile.close();
-	*/
 	return 0;
 }
 
@@ -142,33 +210,37 @@ int moveAnt(Ant& ant) {
 	return 0;
 }
 
-int workAnt(vector<unsigned char>& image, int width, int height, Ant& ant) {
+void workAnt(vector<unsigned char>& image, const vector<int>& dirs, const unsigned char& colors, const int& width, const int& height, Ant& ant) {
 	int x = ant.x;
 	int y = ant.y;
-	unsigned char image_a = image[4 * width * y + 4 * x + 3]; // alpha
+	
+	unsigned char c = image[width * y + x]; // find the color of the square
+	
+	ant.vector += dirs[c]; // turn the ant based on color
+	
+	while (ant.vector >= 360) {
+		ant.vector -= 360;
+	}
+	
+	while (ant.vector < 0) {
+		ant.vector += 360;
+	}
+	
+	c++; // flip the color of the square
+	if (c == colors) { // check color bound
+		c = 0;
+	}
+	
+	image[width * y + x] = c;
+	
+	// legacy code
+	/*unsigned char image_a = image[4 * width * y + 4 * x + 3]; // alpha
 	unsigned char image_r = image[4 * width * y + 4 * x + 0]; // red
 	unsigned char image_g = image[4 * width * y + 4 * x + 1]; // green
 	unsigned char image_b = image[4 * width * y + 4 * x + 2]; // blue
-	if (((image_r + image_g + image_b) / 3) < 128) {
-		image[4 * width * y + 4 * x + 0] ^= 0xFF;
-    	image[4 * width * y + 4 * x + 1] ^= 0xFF;
-    	image[4 * width * y + 4 * x + 2] ^= 0xFF;
-    	if ((ant.vector + 90) < 360)
-    		ant.vector += 90;
-    	else
-    		ant.vector = 0;
-	} else {
-		image[4 * width * y + 4 * x + 0] ^= 0xAA;
-    	image[4 * width * y + 4 * x + 1] ^= 0xAA;
-    	image[4 * width * y + 4 * x + 2] ^= 0xAA;
-    	if ((ant.vector - 90) > 0)
-    		ant.vector -= 90;
-    	else
-    		ant.vector = 270;
-	};
+	*/
 	
-	
-	return 0;
+	return;
 }
 
 int createBox(int x1, int x2, int y1, int y2, int width, int height, vector<unsigned char>& image) {
@@ -183,23 +255,105 @@ int createBox(int x1, int x2, int y1, int y2, int width, int height, vector<unsi
 	return 0;
 }
 
-void HSVtoRGB(unsigned char &R, unsigned char &G, unsigned char &B, int H, unsigned char S, unsigned char V) {
-	unsigned char min, max, delta;
+void convertColor(const HSV& c1, RGB& c2) {
+	float r, g, b, h, s, v;
+	h = c1.h / 255.0;
+	s = c1.s / 255.0;
+	v = c1.v / 255.0;
 	
-	if (R < G) min = R else min = g;ls
+	if (s == 0) r = g = b = v;
+	else {
+		float f, p, q, t;
+		int i;
+		
+		h *= 6;
+		i = int(floor(h));
+		f = h - i;
+		p = v * (1 - s);
+		q = v * (1 - (s * f));
+		t = v * (1 - (s * (1 - f)));
+		
+		switch(i)       
+        {         
+			case 0: r = v; g = t; b = p; break;
+			case 1: r = q; g = v; b = p; break;
+			case 2: r = p; g = v; b = t; break;
+			case 3: r = p; g = q; b = v; break;
+			case 4: r = t; g = p; b = v; break;
+            case 5: r = v; g = p; b = q; break;
+        }
+    }
 	
-	if (
+	c2.r = char(r * 255);
+	c2.g = char(g * 255);
+	c2.b = char(b * 255);
+	
+	return;
 }
 
-int generateColors(int previous) {
-	int inversePhi = 0.618033988749895;
+void convertColor(const RGB& c1, HSV& c2) {
+	float r, g, b, h, s, v;
 	
-	previous += inversePhi;
-	previous %= 1;
+	r = c1.r / 255.0;
+	g = c1.g / 255.0;
+	b = c1.b / 255.0;
 	
-	int R, G, B;
+	float maxColor = max(r, max(g, b));
+	float minColor = min(r, min(g, b));
 	
-	HSVtoRGB(R, G, B, previous, 0.5, 0.95);
+	v = maxColor;
 	
-	return
+	if (maxColor == 0) s = 0;
+	else s = (maxColor - minColor) / maxColor;
+	
+	if (s == 0) h = 0;
+	else {
+		if (r == maxColor) h = (g - b) / (maxColor - minColor);
+		else if (g == maxColor) h = 2.0 + (b - r) / (maxColor - minColor);
+		else h = 4.0 + (r - g) / (maxColor - minColor);
+		h /= 6.0;
+		
+		if (h < 0) h++;
+	}
+	
+	c2.h = int(h * 255);
+	c2.s = int(s * 255);
+	c2.v = int(v * 255);
+	
+	return;
+}
+
+HSV generateColor(HSV& c1) {
+	HSV c2;
+	float next = c1.h / 255.0;
+	
+	c2.s = 0.5 * 255;
+	c2.v = 0.95 * 255;
+	
+	float inversePhi = 0.618033988749895;
+	
+	next += inversePhi;
+	next = fmod(next, 1);
+	
+	c2.h = (unsigned char)(next * 255);	
+	
+	return c2;
+}
+
+void printColor(HSV &c) {
+	cout << "H:" << int(c.h);
+	cout << " S:" << int(c.s);
+	cout << " V:" << int(c.v);
+	cout << endl;
+	
+	return;
+}
+
+void printColor(RGB &c) {
+	cout << "R:" << int(c.r);
+	cout << " G:" << int(c.g);
+	cout << " B:" << int(c.b);
+	cout << endl;
+
+	return;
 }
