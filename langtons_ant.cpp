@@ -34,8 +34,8 @@ void printColor(RGB &c);
 void convertColor(const HSV&, RGB&);
 void convertColor(const RGB&, HSV&);
 
-void decodeOneStep(const char*, vector<unsigned char>&, unsigned int&, unsigned int&);
-void encodeOneStep(const char*, vector<unsigned char>&, int, int);
+void decodeOneStep(string, vector<unsigned char>&, unsigned int&, unsigned int&);
+void encodeOneStep(string, vector<unsigned char>&, int, int);
 
 HSV generateColor(HSV&);
 
@@ -50,8 +50,8 @@ int main(int argc, char * argv[]) {
 	long long steps; // number of iterations
 	
 	if (argc > 1) {
-		colorLength = strlen(argv[1]);
-		steps = stoll(argv[2]);
+		colorLength = strlen(argv[1]); // first argument is a sequence of LR characters
+		steps = stoll(argv[2]); // second argument is the number of steps
 	}else return 0;
 	
 	cout << colorLength << endl;
@@ -152,7 +152,7 @@ int main(int argc, char * argv[]) {
 	
 	cout << "Encoding now..." << endl;
 	
-	string outputString = argv[1] + argv[2];
+	string outputString = string(argv[1]) + argv[2];
 	
 	encodeOneStep(outputString, imageFinal, width, height);
 	
@@ -170,7 +170,7 @@ void decodeOneStep(const char* filename, vector<unsigned char>& image, unsigned 
   //the pixels are now in the vector "image", 4 bytes per pixel, ordered RGBARGBA..., use it as texture, draw it, ...
 }
 
-void encodeOneStep(const char* filename, std::vector<unsigned char>& image, int width, int height) {
+void encodeOneStep(string filename, std::vector<unsigned char>& image, int width, int height) {
 	//Encode the image
 	unsigned error = lodepng::encode(filename, image, width, height);
 
