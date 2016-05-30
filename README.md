@@ -9,4 +9,10 @@ The program outputs a PNG file using the [lodepng](https://github.com/lvandeve/l
 
 The executable takes two arguments:
 * a sequence of letters that specify what movement the ant should take (eg. RLR or LLRR to name a few)
-* a number of movements (The program seems to bog down around 10^9 movements)
+* a number of movements (the program seems to bog down around 10^9 movements)
+
+Interesting example
+-------------------
+```
+langtons_ant LRRRRRLLR 10000000
+```
