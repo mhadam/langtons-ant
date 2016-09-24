@@ -1,7 +1,7 @@
 Langton's Ant
 =============
 
-A short project I whipped up one night, experimenting with a "cellular automaton" called [Langton's Ant](https://en.wikipedia.org/wiki/Langton's_ant).
+A project I created while experimenting with a "cellular automaton" called [Langton's Ant](https://en.wikipedia.org/wiki/Langton's_ant).
 
 Compiles with [clang](http://clang.llvm.org/).
 
